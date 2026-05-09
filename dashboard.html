@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication and Authorization Mechanisms </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src='https://unpkg.com/tesseract.js@4.1.0/dist/tesseract.min.js'></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+    body { font-family: 'Inter', sans-serif; }
+    .card {
+        background-color: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        padding: 1.5rem;
+    }
+</style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Authentication and Authorization Mechanisms</h1>
+            <p class="text-gray-600 mt-1">Vehicle Entrance at Restricted Areas</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-8">
+                <div class="card">
+                    <h2 class="text-2xl font-semibold mb-4">ANPR Gate Control</h2>
+                    <div id="cameraFeed" class="relative w-full h-48 bg-gray-900 rounded-md flex items-center justify-center mb-4 overflow-hidden border-2 border-gray-700">
+                        <video id="cameraPreview" autoplay playsinline style="width:100%; height:100%; object-fit: cover;"></video>
+                        <div class="absolute top-2 left-2 flex items-center text-red-500">
+                            <div class="w-3 h-3 bg-red-500 rounded-full mr-2 animate-pulse"></div>
+                            <span class="text-xs font-mono">REC</span>
+                        </div>
+                        <p id="cameraText" class="absolute text-gray-400 text-lg">Camera is active. Waiting for vehicle...</p>
+                        <p id="capturedPlate" class="absolute hidden text-white text-5xl font-mono tracking-widest bg-black bg-opacity-50 px-4 py-2 rounded-lg"></p>
+                    </div>
+                    <form id="processVehicleForm" class="space-y-4">
+                        <input type="text" id="plateInput" placeholder="Enter Plate Number" required class="flex-grow w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <button type="button" id="entryBtn" onclick="handleProcessing('IN')" class="w-full flex-1 bg-green-600 text-white font-semibold px-6 py-3 rounded-md hover:bg-green-700 transition duration-300">Process Entry (IN)</button>
+                            <button type="button" id="exitBtn" onclick="handleProcessing('OUT')" class="w-full flex-1 bg-yellow-500 text-white font-semibold px-6 py-3 rounded-md hover:bg-yellow-600 transition duration-300">Process Exit (OUT)</button>
+                        </div>
+                    </form>
+                    <div id="gateStatus" class="mt-4 flex items-center p-4 rounded-md bg-gray-200">
+                        <div id="gateIndicator" class="w-6 h-6 rounded-full bg-gray-400 mr-4"></div>
+                        <span id="gateStatusText" class="font-medium text-lg">Gate is Closed</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="text-2xl font-semibold mb-4">Vehicle Management</h2>
+                    <div class="border-b border-gray-200 mb-4">
+                        <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                            <a href="#" id="staffTab" onclick="switchTab('staff')" class="border-blue-500 text-blue-600 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">Staff Vehicles</a>
+                            <a href="#" id="visitorTab" onclick="switchTab('visitor')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm">Visitor Vehicles</a>
+                        </nav>
+                    </div>
+                    <div id="staffContent">
+                        <h3 class="text-lg font-medium mb-2">Add New Staff Vehicle</h3>
+                        <form id="addStaffForm" class="flex flex-col sm:flex-row gap-4 mb-6">
+                            <input type="text" id="staffName" placeholder="Staff Name/ID" required class="flex-grow w-full px-4 py-2 border border-gray-300 rounded-md">
+                            <input type="text" id="staffPlate" placeholder="Plate Number" required class="flex-grow w-full px-4 py-2 border border-gray-300 rounded-md">
+                            <button type="submit" class="w-full sm:w-auto bg-green-600 text-white font-semibold px-6 py-2 rounded-md hover:bg-green-700">Add Staff</button>
+                        </form>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white">
+                                <thead>
+                                    <tr>
+                                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Staff Name/ID</th>
+                                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Plate Number</th>
+                                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staffTableBody" class="divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="visitorContent" class="hidden">
+                           <h3 class="text-lg font-medium mb-2">Add New Visitor Vehicle</h3>
+                         <form id="addVisitorForm" class="flex flex-col sm:flex-row gap-4 mb-6">
+                            <input type="text" id="visitorName" placeholder="Visitor Name" required class="flex-grow px-4 py-2 border rounded-md">
+                            <input type="text" id="visitorPlate" placeholder="Plate Number" required class="flex-grow px-4 py-2 border rounded-md">
+                            <input type="datetime-local" id="visitorExpiry" required class="flex-grow px-4 py-2 border rounded-md">
+                            <button type="submit" class="bg-green-600 text-white font-semibold px-6 py-2 rounded-md hover:bg-green-700">Add Visitor</button>
+                        </form>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white">
+                                <thead>
+                                    <tr>
+                                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Visitor Name</th>
+                                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Plate Number</th>
+                                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Access Expires</th>
+                                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                        <th class="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="visitorTableBody" class="divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-1">
+                <div class="card h-full">
+                    <h2 class="text-2xl font-semibold mb-4">Access Logs</h2>
+                    <div id="accessLogContainer" class="space-y-3 h-[70vh] overflow-y-auto pr-2"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const API_URL = 'http://127.0.0.1:5000/api'; 
+        let isProcessing = false;
+
+        // --- CORE API HANDLER ---
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            try {
+                const options = {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                };
+                if (body) options.body = JSON.stringify(body)
+                const response = await fetch(`${API_URL}${endpoint}`, options); 
+                
+                if (response.status === 404) {
+                    throw new Error('API route not found. Check endpoint configuration.');
+                }
+                
+                const responseText = await response.text();
+                let data = responseText ? JSON.parse(responseText) : {};
+                
+                if (!response.ok) {
+                    throw new Error(data.error || data.message || 'Server responded with an error.');
+                }
+                
+                return data;
+            } catch (error) {
+                console.error(`API call to ${endpoint} failed:`, error);
+                showCustomAlert(error.message || 'Network or API error occurred.');
+                return null;
+            }
+        }
+
+        // --- DATA LOADING & RENDERING ---
+        async function loadInitialData() {
+            // Load Staff Data
+            const staffData = await apiCall('/staff');
+            if (staffData) renderStaffTable(staffData);
+
+            // Load Visitor Data
+            const visitorData = await apiCall('/visitors');
+            if (visitorData) renderVisitorTable(visitorData);
+
+            // Load Logs Data
+            const logs = await apiCall('/access-logs');
+            if (logs) renderAccessLogs(logs);
+        }
+        
+        // UI Rendering functions
+        function renderStaffTable(staff = []) {
+            const tableBody = document.getElementById('staffTableBody');
+            tableBody.innerHTML = staff.map(person => `
+                <tr class="hover:bg-gray-50">
+                    <td class="py-3 px-4 text-sm text-gray-900">${person.name}</td>
+                    <td class="py-3 px-4 text-sm text-gray-500 font-mono">${person.plate_number.toUpperCase()}</td>
+                    <td class="py-3 px-4 text-sm"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${person.status === 'IN' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${person.status}</span></td>
+                    <td class="py-3 px-4"><button onclick="removeStaff(${person.id})" class="text-red-600 hover:text-red-800 text-sm font-medium">Remove</button></td>
+                </tr>`).join('');
+            if (staff.length === 0) tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">No staff vehicles registered.</td></tr>`;
+        }
+
+        function renderVisitorTable(visitors = []) {
+            const tableBody = document.getElementById('visitorTableBody');
+            tableBody.innerHTML = visitors.map(visitor => {
+                const expiryDate = new Date(visitor.expiry);
+                const isExpired = expiryDate < new Date();
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-3 px-4 text-sm text-gray-900">${visitor.name}</td>
+                        <td class="py-3 px-4 text-sm text-gray-500 font-mono">${visitor.plate_number.toUpperCase()}</td>
+                        <td class="py-3 px-4 text-sm ${isExpired ? 'text-red-500' : 'text-gray-500'}">${expiryDate.toLocaleString()} ${isExpired ? '(Expired)' : ''}</td>
+                        <td class="py-3 px-4 text-sm"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${visitor.status === 'IN' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">${visitor.status}</span></td>
+                        <td class="py-3 px-4"><button onclick="removeVisitor(${visitor.id})" class="text-red-600 hover:text-red-800 text-sm font-medium">Remove</button></td>
+                    </tr>`;
+            }).join('');
+            if (visitors.length === 0) tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">No visitor vehicles registered.</td></tr>`;
+        }
+
+        function renderAccessLogs(logs = []) {
+            const logContainer = document.getElementById('accessLogContainer');
+            const statusColors = {
+                'ENTRY GRANTED': 'text-green-600 border-green-200 bg-green-50',
+                'EXIT RECORDED': 'text-blue-600 border-blue-200 bg-blue-50',
+                'DENIED': 'text-red-600 border-red-200 bg-red-50',
+                'GRANTED': 'text-green-600 border-green-200 bg-green-50', 
+                'ERROR': 'text-red-600 border-red-200 bg-red-50' 
+            };
+            logContainer.innerHTML = logs.map(log => {
+                const logStatus = log.status || 'UNKNOWN';
+                const logReason = log.reason || log.message || 'No reason provided';
+                const logName = log.name || 'Unknown';
+                return `
+                    <div class="p-3 rounded-md border ${statusColors[logStatus] || 'text-gray-600 border-gray-200 bg-gray-50'}">
+                        <div class="flex justify-between items-center">
+                            <p class="font-semibold text-sm">${logName} <span class="font-mono text-gray-600">(${log.plate_number.toUpperCase()})</span></p>
+                            <p class="text-xs text-gray-500">${new Date(log.timestamp).toLocaleTimeString()}</p>
+                        </div>
+                        <p class="text-sm mt-1">Status: <span class="font-bold">${logStatus.replace(/_/g, ' ')}</span> - ${logReason}</p>
+                    </div>`}).join('');
+            if (logs.length === 0) logContainer.innerHTML = `<p class="text-center text-gray-500 mt-4">No access attempts logged yet.</p>`;
+        }
+
+        // --- API EVENT HANDLERS ---
+        
+        document.getElementById('addStaffForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const name = document.getElementById('staffName').value;
+            const plate = document.getElementById('staffPlate').value;
+            if (await apiCall('/staff', 'POST', { name, plate_number: plate })) {
+                e.target.reset();
+                loadInitialData();
+            }
+        });
+
+        document.getElementById('addVisitorForm').addEventListener('submit', async e => {
+            e.preventDefault();
+            const name = document.getElementById('visitorName').value;
+            const plate = document.getElementById('visitorPlate').value;
+            const expiry = document.getElementById('visitorExpiry').value;
+            if (await apiCall('/visitors', 'POST', { name, plate_number: plate, expiry })) {
+                e.target.reset();
+                loadInitialData();
+            }
+        });
+
+        window.removeStaff = async id => {
+            if (confirm('Are you sure you want to remove this staff vehicle?')) {
+                if (await apiCall(`/staff/${id}`, 'DELETE')) loadInitialData();
+            }
+        };
+
+        window.removeVisitor = async id => {
+            if (confirm('Are you sure you want to remove this visitor vehicle?')) {
+                if (await apiCall(`/visitors/${id}`, 'DELETE')) loadInitialData();
+            }
+        };
+
+        // --- GATE PROCESSING LOGIC (The primary fix for the loading issue) ---
+        window.handleProcessing = async (direction) => {
+            if (isProcessing) return; // Prevent double-click
+            
+            // FIX: Immediately disable buttons for visual feedback and lock UI
+            isProcessing = true; 
+            document.querySelectorAll('#entryBtn, #exitBtn').forEach(b => b.disabled = true);
+            
+            // 1. Determine the plate to use
+            const scannedPlate = window.lastScannedPlate || ''; // From app.js
+            const manualPlate = document.getElementById('plateInput').value.toUpperCase().trim();
+            const plate = scannedPlate || manualPlate; 
+
+            if (!plate) {
+                showCustomAlert("Please enter a plate number or wait for the scanner to detect one.");
+                // FIX: Unlock UI immediately if plate check fails
+                resetGateStatus();
+                return;
+            }
+            
+            const capturedPlateEl = document.getElementById('capturedPlate');
+            document.getElementById('cameraText').classList.add('hidden');
+            capturedPlateEl.textContent = 'Processing...'; 
+            capturedPlateEl.classList.remove('hidden');
+            updateGateUI('PROCESSING', `Checking plate: ${plate}...`);
+
+            try {
+                // 2. Perform the API call using the locally defined apiCall wrapper
+                const result = await apiCall('/process-vehicle', 'POST', { plate_number: plate, direction });
+                
+                if(result) {
+                    // Update the gate UI with the backend's result
+                    const uiStatus = result.status.includes('GRANTED') ? (result.status.includes('ENTRY') ? 'ENTRY GRANTED' : 'GRANTED') : (result.status.includes('RECORDED') ? 'EXIT RECORDED' : result.status);
+                    updateGateUI(uiStatus, result.message || result.reason);
+                    
+                    // 💥 CRITICAL FIX: Force the page to reload the data after DB update
+                    await loadInitialData(); 
+                } else {
+                    // This handles cases where apiCall fails but doesn't throw a fatal error
+                    updateGateUI('DENIED', 'Processing failed or vehicle unauthorized.');
+                }
+                
+            } catch (e) {
+                console.error("Vehicle processing failed:", e);
+                updateGateUI('ERROR', 'System error during processing.');
+            } finally {
+                // 3. Cleanup and reset (ALWAYS RUNS, PREVENTING LOCK-UP)
+                document.getElementById('plateInput').value = '';
+                window.lastScannedPlate = ''; // Clear scanned plate
+                
+                // Wait 3 seconds for the user to read the message, then reset UI
+                setTimeout(resetGateStatus, 3000); 
+            }
+        };
+
+        // --- UI UTILITY FUNCTIONS ---
+        function updateGateUI(status, reason) {
+            const gateStatusEl = document.getElementById('gateStatus');
+            const gateIndicator = document.getElementById('gateIndicator');
+            const gateStatusText = document.getElementById('gateStatusText');
+            gateStatusText.textContent = `${(status || 'ERROR').replace(/_/g, ' ')}. ${reason || ''}`;
+
+            const statusClasses = {
+                'ENTRY GRANTED': 'bg-green-100',
+                'EXIT RECORDED': 'bg-blue-100',
+                'PROCESSING': 'bg-yellow-100',
+                'DENIED': 'bg-red-100',
+                'GRANTED': 'bg-green-100', 
+                'CLOSED': 'bg-gray-200', // Added default state
+                'ERROR': 'bg-red-200',
+            };
+            const indicatorClasses = {
+                'ENTRY GRANTED': 'bg-green-500 animate-bounce',
+                'EXIT RECORDED': 'bg-blue-500 animate-bounce',
+                'PROCESSING': 'bg-yellow-400 animate-pulse',
+                'DENIED': 'bg-red-500',
+                'GRANTED': 'bg-green-500 animate-bounce', 
+                'CLOSED': 'bg-gray-400', // Added default state
+                'ERROR': 'bg-red-600',
+            };
+            
+            gateStatusEl.className = `mt-4 flex items-center p-4 rounded-md ${statusClasses[status] || 'bg-gray-200'}`;
+            gateIndicator.className = `w-6 h-6 rounded-full mr-4 ${indicatorClasses[status] || 'bg-gray-400'}`;
+        }
+        
+        function resetGateStatus() {
+            updateGateUI('CLOSED', 'Gate is Closed');
+            document.getElementById('cameraText').classList.remove('hidden');
+            document.getElementById('capturedPlate').classList.add('hidden');
+            document.querySelectorAll('#entryBtn, #exitBtn').forEach(b => b.disabled = false);
+            isProcessing = false; // Release the lock
+        }
+
+        function showCustomAlert(message) {
+            alert(message); // Fallback for simplicity.
+        }
+
+        window.switchTab = tab => {
+            document.getElementById('staffContent').classList.toggle('hidden', tab !== 'staff');
+            document.getElementById('visitorContent').classList.toggle('hidden', tab !== 'visitor');
+            document.getElementById('staffTab').classList.toggle('border-blue-500', tab === 'staff');
+            document.getElementById('staffTab').classList.toggle('text-blue-600', tab === 'staff');
+            document.getElementById('visitorTab').classList.toggle('border-blue-500', tab === 'visitor');
+            document.getElementById('visitorTab').classList.toggle('text-blue-600', tab === 'visitor');
+            
+            // Reload data to ensure status is up-to-date when switching tabs
+            loadInitialData();
+        };
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadInitialData();
+            
+            // Set visitor expiry date 24 hours in the future
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            now.setHours(now.getHours() + 24); 
+            document.getElementById('visitorExpiry').value = now.toISOString().slice(0, 16);
+        });
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>

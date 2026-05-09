@@ -1,0 +1,23 @@
+# INSTRUCTIONS TO FIX THE CAMERA SCANNING
+# Your backend file (app.py) got corrupted. Here's what to do:
+
+# OPTION 1: Stop server, restore from backup
+# 1. Press Ctrl+C to stop the server
+# 2. Run: cp app_backup.py app.py
+# 3. Add this code to app.py after line 271 (after the ocr_scan function)
+
+# OPTION 2: Use a simpler temporary fix
+# Just change the frontend to use the existing /api/ocr/scan endpoint instead
+
+# For camera.js, change line 102 from:
+# const result = await window.api.scanPlate(imageData);
+
+# To:
+# const response = await fetch('/api/ocr/scan', {
+#     method: 'POST',
+#     headers: {'Content-Type': 'application/json'},
+#     body: JSON.stringify({image: imageData})
+# });
+# const result = await response.json();
+
+# This uses your EXISTING working OCR endpoint!
